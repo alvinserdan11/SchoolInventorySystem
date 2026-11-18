@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Borrowing History - School Inventory System</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <input type="checkbox" id="menu-toggle" class="menu-toggle" aria-hidden="true" tabindex="-1">
+  <label for="menu-toggle" class="menu-backdrop"></label>
+  <div class="dashboard-card">
+    <aside>
+      <label for="menu-toggle" class="sidebar-close" role="button" aria-label="Close menu">✖</label>
+      <img src="download.png" alt="logo">
+      <h1>School Inventory System</h1>
+      <nav class="sidebar-nav">
+        <button type="button" class="nav-link" onclick="showPage('dashboard')">📊 <span>Dashboard</span></button>
+        <button type="button" class="nav-link" onclick="showPage('equipment')">📦 <span>Equipment</span></button>
+        <button type="button" class="nav-link" onclick="showPage('users')">👥 <span>Users</span></button>
+        <button type="button" class="nav-link active" onclick="showPage('history')">📜 <span>Borrowing
+            History</span></button>
+        <button type="button" class="nav-link" onclick="showPage('penalties')">💰 <span>Penalties</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <button type="button" class="nav-link" onclick="logout()">🚪 <span>Log Out</span></button>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="topbar glass">
+        <label for="menu-toggle" id="menu-button" class="menu-button" role="button" aria-label="Open menu">☰</label>
+        <h2 id="page-title">Borrowing History</h2>
+        <div class="topbar-user">
+          <span id="user-name">User</span>
+          <span id="user-role" class="badge badge-active">Role</span>
+        </div>
+      </header>
+      <div class="content">
+        <section id="page-history" class="page">
+          <div class="toolbar glass">
+            <input type="search" id="history-search" placeholder="🔍 Search history..." oninput="renderHistory()">
+            <select id="history-status-filter" onchange="renderHistory()">
+              <option value="all">All Statuses</option>
+              <option value="Borrowed">Borrowed</option>
+              <option value="Returned">Returned</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
+          <section class="panel glass">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Borrower</th>
+                    <th>User ID</th>
+                    <th>Equipment</th>
+                    <th>Qty</th>
+                    <th>Borrowing Date</th>
+                    <th>Expected Return</th>
+                    <th>Actual Return</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="history-body">
+                  <tr>
+                    <td colspan="9">Loading history...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+      </div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <!-- Return Confirmation Modal -->
+  <div id="return-confirm-modal" class="modal-overlay hidden">
+    <div class="modal-box glass" style="text-align:center;max-width:420px">
+      <div class="modal-header" style="justify-content:center;border-bottom:0;padding-bottom:5px">
+        <h3 style="color:#13845b;font-size:22px">↩️ Confirm Return</h3>
+      </div>
+      <div id="return-confirm-message"
+        style="color:#40536d;font-size:14px;margin:10px 0 20px;text-align:left;padding:0 10px">
+        <!-- Message injected here -->
+      </div>
+      <div class="modal-actions" style="justify-content:center;gap:12px">
+        <button type="button" class="btn" onclick="closeReturnModal()" style="min-width:100px">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="confirmReturn()"
+          style="min-width:100px;background:linear-gradient(110deg,#159b69,#13845b)">Confirm Return</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/common.js"></script>
+  <script src="./js/history.js"></script>
+</body>
+
+</html>

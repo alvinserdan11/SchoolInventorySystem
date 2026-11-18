@@ -1,0 +1,12 @@
+# Backend dependencies
+BackEnd/node_modules/
+
+# Environment variables (NEVER upload this!)
+BackEnd/.env
+
+# Frontend dependencies (if any)
+FrontEnd/node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
