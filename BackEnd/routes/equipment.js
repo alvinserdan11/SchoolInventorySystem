@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Equipment = require('../models/Equipment');
+const { authMiddleware } = require('../middleware/authMiddleware');
+
+router.use(authMiddleware);
 
 // GET all equipment
 router.get('/', async (req, res) => {

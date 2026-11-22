@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Penalty = require('../models/Penalty');
+const { authMiddleware } = require('../middleware/authMiddleware');
+
+// Apply auth middleware
+router.use(authMiddleware);
 
 // GET all penalties
 router.get('/', async (req, res) => {
@@ -18,7 +22,17 @@ router.get('/', async (req, res) => {
 // POST create penalty
 router.post('/', async (req, res) => {
   try {
-    const penalty = new Penalty(req.body);
+    const penaltyData = { ...req.body };
+
+    // Set recorded_by from the authenticated user
+    penaltyData.recorded_by = req.user.userId;
+
+    // Convert empty string transaction_id to null
+    if (!penaltyData.transaction_id || penaltyData.transaction_id === '') {
+      penaltyData.transaction_id = null;
+    }
+
+    const penalty = new Penalty(penaltyData);
     await penalty.save();
     res.status(201).json({ success: true, data: penalty });
   } catch (err) {

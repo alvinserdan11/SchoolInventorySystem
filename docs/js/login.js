@@ -2,11 +2,11 @@
 // LOGIN.JS - Handles login functionality
 // ============================================
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   var loginForm = document.getElementById('login-form');
   if (!loginForm) return;
 
-  loginForm.addEventListener('submit', async function(e) {
+  loginForm.addEventListener('submit', async function (e) {
     e.preventDefault();
     var username = document.getElementById('username').value;
     var password = document.getElementById('password').value;
@@ -19,10 +19,12 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       var data = await response.json();
       if (data.success) {
+        // Store both user data and JWT token
         localStorage.setItem('currentUser', JSON.stringify(data.user));
+        localStorage.setItem('authToken', data.token);
         window.location.href = 'dashboard.html';
       } else {
-        alert('Invalid credentials!');
+        alert(data.message || 'Invalid credentials!');
       }
     } catch (err) {
       console.error('Login error:', err);

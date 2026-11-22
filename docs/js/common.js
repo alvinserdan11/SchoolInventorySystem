@@ -4,19 +4,37 @@
 
 const API_URL = 'http://localhost:3000/api';
 
+// Get auth headers for API requests
+function getAuthHeaders() {
+  var token = localStorage.getItem('authToken');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? 'Bearer ' + token : ''
+  };
+}
+
+// XSS Prevention: escape HTML special characters
+function escapeHtml(text) {
+  if (text === null || text === undefined) return '';
+  var div = document.createElement('div');
+  div.textContent = String(text);
+  return div.innerHTML;
+}
+
 function checkAuth() {
-  const user = JSON.parse(localStorage.getItem('currentUser'));
-  if (!user && !window.location.href.includes('index.html')) {
+  var user = JSON.parse(localStorage.getItem('currentUser'));
+  var token = localStorage.getItem('authToken');
+  if ((!user || !token) && !window.location.href.includes('index.html')) {
     window.location.href = 'index.html';
   }
   return user;
 }
 
 function updateTopbar() {
-  const user = JSON.parse(localStorage.getItem('currentUser'));
+  var user = JSON.parse(localStorage.getItem('currentUser'));
   if (user) {
-    const userNameEl = document.getElementById('user-name');
-    const userRoleEl = document.getElementById('user-role');
+    var userNameEl = document.getElementById('user-name');
+    var userRoleEl = document.getElementById('user-role');
     if (userNameEl) userNameEl.textContent = user.first_name + ' ' + user.last_name;
     if (userRoleEl) userRoleEl.textContent = user.user_type;
   }
@@ -24,11 +42,12 @@ function updateTopbar() {
 
 function logout() {
   localStorage.removeItem('currentUser');
+  localStorage.removeItem('authToken');
   window.location.href = 'index.html';
 }
 
 function showPage(pageName) {
-  const pageMap = {
+  var pageMap = {
     'dashboard': 'dashboard.html',
     'equipment': 'equipment.html',
     'users': 'user.html',
@@ -41,22 +60,22 @@ function showPage(pageName) {
 
 function showToast(message, type) {
   type = type || 'success';
-  const toast = document.getElementById('toast');
+  var toast = document.getElementById('toast');
   if (toast) {
     toast.textContent = message;
     toast.style.background = type === 'error' ? '#d84b5b' : '#102d52';
     toast.style.display = 'block';
-    setTimeout(function() { toast.style.display = 'none'; }, 3000);
+    setTimeout(function () { toast.style.display = 'none'; }, 3000);
   }
 }
 
 function openModal(modalId) {
-  const modal = document.getElementById(modalId);
+  var modal = document.getElementById(modalId);
   if (modal) modal.classList.remove('hidden');
 }
 
 function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
+  var modal = document.getElementById(modalId);
   if (modal) modal.classList.add('hidden');
 }
 
@@ -68,16 +87,16 @@ function closeModalOnBackdrop(event, modalId) {
 
 function formatDate(dateString) {
   if (!dateString) return '-';
-  const date = new Date(dateString);
+  var date = new Date(dateString);
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function getStatusBadge(status) {
-  const statusClass = (status || '').toLowerCase();
-  return '<span class="badge status-' + statusClass + '">' + status + '</span>';
+  var statusClass = (status || '').toLowerCase();
+  return '' + escapeHtml(status) + '';
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   checkAuth();
   updateTopbar();
 });

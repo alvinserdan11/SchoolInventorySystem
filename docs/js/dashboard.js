@@ -8,13 +8,20 @@ document.addEventListener('DOMContentLoaded', function () {
   loadRecentActivities();
   loadActiveBorrowings();
   loadRecentEquipment();
+  loadEquipmentAvailability();
 });
 
 async function loadDashboardStats() {
   try {
-    var equipmentRes = await fetch(API_URL + '/equipment');
-    var usersRes = await fetch(API_URL + '/users');
-    var transactionsRes = await fetch(API_URL + '/transactions');
+    // REMOVED: sync-stock call was causing stock corruption
+    // Stock is managed directly by borrow/return operations
+
+    var headers = getAuthHeaders();
+    var [equipmentRes, usersRes, transactionsRes] = await Promise.all([
+      fetch(API_URL + '/equipment', { headers }),
+      fetch(API_URL + '/users', { headers }),
+      fetch(API_URL + '/transactions', { headers })
+    ]);
 
     var equipment = await equipmentRes.json();
     var users = await usersRes.json();
@@ -52,11 +59,13 @@ async function loadDashboardStats() {
       if (statTeachers) statTeachers.textContent = teachers;
     }
 
-    // Active borrowings count
+    // Active borrowings count (includes both Borrowed and Overdue)
     if (transactions.success) {
       var active = 0;
       for (var k = 0; k < transactions.data.length; k++) {
-        if (transactions.data[k].status === 'Borrowed') active++;
+        if (transactions.data[k].status === 'Borrowed' || transactions.data[k].status === 'Overdue') {
+          active++;
+        }
       }
       var statPending = document.getElementById('stat-pending');
       if (statPending) statPending.textContent = active;
@@ -68,14 +77,14 @@ async function loadDashboardStats() {
 
 async function loadRecentActivities() {
   try {
-    var res = await fetch(API_URL + '/transactions');
+    var res = await fetch(API_URL + '/transactions', { headers: getAuthHeaders() });
     var data = await res.json();
     if (data.success) {
       var recent = data.data.slice(0, 5);
       var tbody = document.getElementById('recent-activities-body');
       if (tbody) {
         tbody.innerHTML = recent.map(function (t) {
-          return '<tr><td>' + (t.borrower_name || '-') + '</td><td>' + (t.equipment_name || '-') + '</td><td>' + (t.quantity || 0) + '</td><td>' + formatDate(t.checkout_date) + '</td><td>' + getStatusBadge(t.status) + '</td></tr>';
+          return '<tr><td>' + escapeHtml(t.borrower_name || '-') + '</td><td>' + escapeHtml(t.equipment_name || '-') + '</td><td>' + (t.quantity || 0) + '</td><td>' + formatDate(t.checkout_date) + '</td><td>' + getStatusBadge(t.status) + '</td></tr>';
         }).join('');
       }
     }
@@ -86,11 +95,12 @@ async function loadRecentActivities() {
 
 async function loadActiveBorrowings() {
   try {
-    var res = await fetch(API_URL + '/transactions');
+    var res = await fetch(API_URL + '/transactions', { headers: getAuthHeaders() });
     var data = await res.json();
     if (data.success) {
+      // Include both Borrowed and Overdue in active borrowings
       var active = data.data.filter(function (t) {
-        return t.status === 'Borrowed';
+        return t.status === 'Borrowed' || t.status === 'Overdue';
       }).slice(0, 5);
       var tbody = document.getElementById('dashboard-active-body');
       if (tbody) {
@@ -98,7 +108,7 @@ async function loadActiveBorrowings() {
           tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">No active borrowings.</td></tr>';
         } else {
           tbody.innerHTML = active.map(function (t) {
-            return '<tr><td>' + (t.borrower_name || '-') + '</td><td>' + (t.equipment_name || '-') + '</td><td>' + (t.quantity || 0) + '</td><td>' + formatDate(t.expected_return_date) + '</td></tr>';
+            return '<tr><td>' + escapeHtml(t.borrower_name || '-') + '</td><td>' + escapeHtml(t.equipment_name || '-') + '</td><td>' + (t.quantity || 0) + '</td><td>' + formatDate(t.expected_return_date) + '</td></tr>';
           }).join('');
         }
       }
@@ -110,18 +120,59 @@ async function loadActiveBorrowings() {
 
 async function loadRecentEquipment() {
   try {
-    var res = await fetch(API_URL + '/equipment');
+    var res = await fetch(API_URL + '/equipment', { headers: getAuthHeaders() });
     var data = await res.json();
     if (data.success) {
       var recent = data.data.slice(0, 5);
       var list = document.getElementById('recent-equipment-list');
       if (list) {
         list.innerHTML = recent.map(function (item) {
-          return '<li>' + item.name + ' <span style="color:var(--muted)">(' + item.available_quantity + '/' + item.total_quantity + ' available)</span></li>';
+          return '<li>' + escapeHtml(item.name) + ' <span style="color:var(--muted)">(' + item.available_quantity + '/' + item.total_quantity + ' available)</span></li>';
         }).join('');
       }
     }
   } catch (err) {
     console.error('Recent equipment error:', err);
+  }
+}
+
+async function loadEquipmentAvailability() {
+  try {
+    var res = await fetch(API_URL + '/equipment', { headers: getAuthHeaders() });
+    var data = await res.json();
+    var container = document.getElementById('availability-overview');
+
+    if (!container) return;
+
+    if (data.success && data.data.length > 0) {
+      var html = '';
+      for (var i = 0; i < data.data.length; i++) {
+        var item = data.data[i];
+        var available = item.available_quantity || 0;
+        var total = item.total_quantity || 0;
+        var borrowed = total - available;
+        var percent = total > 0 ? Math.round((available / total) * 100) : 0;
+
+        var barColor = percent > 50 ? '#13845b' : percent > 20 ? '#f59e0b' : '#c13d50';
+
+        html += '<div style="margin-bottom:16px;">';
+        html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;">';
+        html += '<span style="font-weight:600;color:#1b3150;">' + escapeHtml(item.name) + '</span>';
+        html += '<span style="color:#718096;">' + available + '/' + total + ' available</span>';
+        html += '</div>';
+        html += '<div style="background:#e5ebf3;border-radius:8px;height:10px;overflow:hidden;">';
+        html += '<div style="width:' + percent + '%;background:' + barColor + ';height:100%;border-radius:8px;transition:width 0.5s;"></div>';
+        html += '</div>';
+        html += '<div style="font-size:11px;color:#718096;margin-top:4px;">' + borrowed + ' borrowed</div>';
+        html += '</div>';
+      }
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = '<p style="color:#718096;text-align:center;">No equipment found.</p>';
+    }
+  } catch (err) {
+    console.error('Equipment availability error:', err);
+    var container = document.getElementById('availability-overview');
+    if (container) container.innerHTML = '<p style="color:#c13d50;text-align:center;">Failed to load.</p>';
   }
 }

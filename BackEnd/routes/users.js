@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const { authMiddleware } = require('../middleware/authMiddleware');
+
+// Apply auth middleware to all user routes
+router.use(authMiddleware);
 
 // GET all users
 router.get('/', async (req, res) => {
@@ -15,7 +20,15 @@ router.get('/', async (req, res) => {
 // POST create user
 router.post('/', async (req, res) => {
   try {
-    const user = new User(req.body);
+    const userData = { ...req.body };
+
+    // Hash password if provided
+    if (userData.password) {
+      const salt = await bcrypt.genSalt(10);
+      userData.password = await bcrypt.hash(userData.password, salt);
+    }
+
+    const user = new User(userData);
     await user.save();
     res.status(201).json({ success: true, data: user });
   } catch (err) {
@@ -26,7 +39,15 @@ router.post('/', async (req, res) => {
 // PUT update user
 router.put('/:id', async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const userData = { ...req.body };
+
+    // Hash password if it's being updated
+    if (userData.password) {
+      const salt = await bcrypt.genSalt(10);
+      userData.password = await bcrypt.hash(userData.password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, userData, { new: true });
     res.json({ success: true, data: user });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });

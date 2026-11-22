@@ -11,7 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadHistory() {
   try {
-    const res = await fetch(`${API_URL}/transactions`);
+    // Auto-check for overdue transactions before loading history
+    await fetch(`${API_URL}/transactions/check-overdue`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+
+    const res = await fetch(`${API_URL}/transactions`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (data.success) {
       allTransactions = data.data;
@@ -37,12 +43,12 @@ function renderHistory() {
   if (tbody) {
     tbody.innerHTML = filtered.map(t => {
       const isBorrowed = t.status === 'Borrowed';
-      const returnBtn = isBorrowed ? `<button class="btn btn-small" style="background:#e5f7ef;color:#13845b;border-color:#cceedd" onclick="returnItem('${t._id}', '${t.borrower_name}', '${t.equipment_name}')">↩️ Return</button>` : '-';
+      const returnBtn = isBorrowed ? `<button class="btn btn-small" style="background:#e5f7ef;color:#13845b;border-color:#cceedd" onclick="returnItem('${escapeHtml(t._id)}', '${escapeHtml(t.borrower_name)}', '${escapeHtml(t.equipment_name)}')">↩️ Return</button>` : '-';
       return `
       <tr>
-        <td>${t.borrower_name}</td>
-        <td>${t.borrower_id_number}</td>
-        <td>${t.equipment_name}</td>
+        <td>${escapeHtml(t.borrower_name)}</td>
+        <td>${escapeHtml(t.borrower_id_number)}</td>
+        <td>${escapeHtml(t.equipment_name)}</td>
         <td>${t.quantity}</td>
         <td>${formatDate(t.checkout_date)}</td>
         <td>${formatDate(t.expected_return_date)}</td>
@@ -61,8 +67,8 @@ function returnItem(transactionId, borrowerName, equipmentName) {
   transactionToReturn = transactionId;
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   document.getElementById('return-confirm-message').innerHTML = `
-    <p style="margin:8px 0"><strong>Borrower:</strong> ${borrowerName}</p>
-    <p style="margin:8px 0"><strong>Equipment:</strong> ${equipmentName}</p>
+    <p style="margin:8px 0"><strong>Borrower:</strong> ${escapeHtml(borrowerName)}</p>
+    <p style="margin:8px 0"><strong>Equipment:</strong> ${escapeHtml(equipmentName)}</p>
     <p style="margin:8px 0"><strong>Return Date:</strong> ${today}</p>
     <p style="margin:12px 0 0;font-size:12px;color:#718096">Click Confirm Return to mark this item as returned.</p>
   `;
@@ -80,7 +86,7 @@ async function confirmReturn() {
   try {
     const res = await fetch(`${API_URL}/transactions/${transactionToReturn}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         status: 'Returned',
         actual_return_date: new Date()

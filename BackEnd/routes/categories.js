@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
+const { authMiddleware } = require('../middleware/authMiddleware');
+
+router.use(authMiddleware);
 
 // GET all categories
 router.get('/', async (req, res) => {

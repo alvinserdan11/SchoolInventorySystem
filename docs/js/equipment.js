@@ -16,18 +16,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadCategories() {
   try {
-    const res = await fetch(`${API_URL}/categories`);
+    const res = await fetch(`${API_URL}/categories`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (data.success) {
       allCategories = data.data;
       const categorySelect = document.getElementById('equipment-category');
       const categoryFilter = document.getElementById('equipment-category-filter');
       if (categorySelect) {
-        categorySelect.innerHTML = allCategories.map(c => `<option value="${c._id}">${c.category_name}</option>`).join('');
+        categorySelect.innerHTML = allCategories.map(c => `<option value="${escapeHtml(c._id)}">${escapeHtml(c.category_name)}</option>`).join('');
       }
       if (categoryFilter) {
         categoryFilter.innerHTML = '<option value="all">All Categories</option>' +
-          allCategories.map(c => `<option value="${c._id}">${c.category_name}</option>`).join('');
+          allCategories.map(c => `<option value="${escapeHtml(c._id)}">${escapeHtml(c.category_name)}</option>`).join('');
       }
     }
   } catch (err) {
@@ -37,7 +37,10 @@ async function loadCategories() {
 
 async function loadEquipment() {
   try {
-    const res = await fetch(`${API_URL}/equipment`);
+    // REMOVED: sync-stock call was resetting stock incorrectly
+    // Stock is now managed directly by borrow/return operations
+
+    const res = await fetch(`${API_URL}/equipment`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (data.success) {
       allEquipment = data.data;
@@ -72,29 +75,28 @@ function renderEquipment() {
       const availabilityText = isOutOfStock ? 'Out of Stock' : `${item.available_quantity}/${item.total_quantity} Available`;
       const borrowBtn = isOutOfStock
         ? `<button class="btn btn-small" style="flex:1;background:#ffeaed;color:#c13d50;border-color:#f8d3d9;cursor:not-allowed" disabled>Out of Stock</button>`
-        : `<button class="btn btn-primary btn-small" style="flex:1" onclick="event.stopPropagation();openBorrowForm('${item._id}')">Borrow</button>`;
+        : `<button class="btn btn-primary btn-small" style="flex:1" onclick="event.stopPropagation();openBorrowForm('${escapeHtml(item._id)}')">Borrow</button>`;
       return `
-      <div class="equipment-card" onclick="viewEquipmentDetails('${item._id}')">
-        <img src="${item.image_url || 'download.png'}" alt="${item.name}" onerror="this.src='download.png'">
-        <h4>${item.name}</h4>
-        <p>${item.storage_location || 'No location'}</p>
+      <div class="equipment-card" onclick="viewEquipmentDetails('${escapeHtml(item._id)}')">
+        <img src="${escapeHtml(item.image_url) || 'download.png'}" alt="${escapeHtml(item.name)}" onerror="this.src='download.png'">
+        <h4>${escapeHtml(item.name)}</h4>
+        <p>${escapeHtml(item.storage_location) || 'No location'}</p>
         <span class="badge ${item.available_quantity > 0 ? 'badge-active' : 'status-rejected'}">
           ${availabilityText}
         </span>
         <div style="display:flex;gap:8px;margin-top:10px">
           ${borrowBtn}
-          ${isAdminOrCustodian ? `<button class="btn btn-small" style="color:#c13d50;background:#ffeaed;border-color:#f8d3d9" 
-            onclick="event.stopPropagation();openDeleteModal('${item._id}', '${item.name}')">🗑️</button>` : ''}
+          ${isAdminOrCustodian ? `<button class="btn btn-small" style="color:#c13d50;background:#ffeaed;border-color:#f8d3d9"
+            onclick="event.stopPropagation();openDeleteModal('${escapeHtml(item._id)}', '${escapeHtml(item.name)}')">🗑️</button>` : ''}
         </div>
       </div>
     `}).join('');
   }
 }
 
-// Custom delete modal
 function openDeleteModal(equipmentId, equipmentName) {
   equipmentToDelete = equipmentId;
-  document.getElementById('delete-confirm-message').textContent = `Are you sure you want to delete "${equipmentName}"? This action cannot be undone.`;
+  document.getElementById('delete-confirm-message').textContent = `Are you sure you want to delete "${escapeHtml(equipmentName)}"? This action cannot be undone.`;
   openModal('delete-confirm-modal');
 }
 
@@ -109,7 +111,7 @@ async function confirmDelete() {
   try {
     const res = await fetch(`${API_URL}/equipment/${equipmentToDelete}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' }
+      headers: getAuthHeaders()
     });
     const data = await res.json();
     if (data.success) {
@@ -147,7 +149,6 @@ async function saveEquipment(event) {
   };
 
   if (id) {
-    // Editing existing equipment - preserve available_quantity, recalculate if total changed
     const existing = allEquipment.find(e => e._id === id);
     if (existing) {
       const borrowed = existing.total_quantity - existing.available_quantity;
@@ -156,7 +157,6 @@ async function saveEquipment(event) {
       equipmentData.available_quantity = totalQty;
     }
   } else {
-    // Adding new equipment
     equipmentData.available_quantity = totalQty;
   }
 
@@ -165,7 +165,7 @@ async function saveEquipment(event) {
     const method = id ? 'PUT' : 'POST';
     const res = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(equipmentData)
     });
     const data = await res.json();
@@ -173,6 +173,8 @@ async function saveEquipment(event) {
       showToast(id ? 'Equipment updated!' : 'Equipment added!');
       closeModal('equipment-form-modal');
       loadEquipment();
+    } else {
+      showToast(data.message || 'Error saving equipment', 'error');
     }
   } catch (err) {
     console.error('Save equipment error:', err);
@@ -188,15 +190,15 @@ function viewEquipmentDetails(id) {
   const isAdminOrCustodian = currentUser && (currentUser.user_type === 'admin' || currentUser.user_type === 'custodian');
   if (body) {
     body.innerHTML = `
-      <p><strong>Name:</strong> ${item.name}</p>
-      <p><strong>Serial Number:</strong> ${item.serial_number || 'N/A'}</p>
-      <p><strong>Specifications:</strong> ${item.specifications || 'N/A'}</p>
-      <p><strong>Location:</strong> ${item.storage_location || 'N/A'}</p>
-      <p><strong>Condition:</strong> ${item.condition_status}</p>
-      <p><strong>Status:</strong> ${item.operational_status || 'N/A'}</p>
+      <p><strong>Name:</strong> ${escapeHtml(item.name)}</p>
+      <p><strong>Serial Number:</strong> ${escapeHtml(item.serial_number) || 'N/A'}</p>
+      <p><strong>Specifications:</strong> ${escapeHtml(item.specifications) || 'N/A'}</p>
+      <p><strong>Location:</strong> ${escapeHtml(item.storage_location) || 'N/A'}</p>
+      <p><strong>Condition:</strong> ${escapeHtml(item.condition_status)}</p>
+      <p><strong>Status:</strong> ${escapeHtml(item.operational_status) || 'N/A'}</p>
       <p><strong>Available:</strong> ${item.available_quantity}/${item.total_quantity}</p>
       ${isAdminOrCustodian ? `<div style="margin-top:20px;display:flex;gap:10px">
-        <button class="btn btn-primary" style="flex:1" onclick="closeModal('equipment-details-modal');editEquipment('${item._id}')">✏️ Edit Equipment</button>
+        <button class="btn btn-primary" style="flex:1" onclick="closeModal('equipment-details-modal');editEquipment('${escapeHtml(item._id)}')">✏️ Edit Equipment</button>
       </div>` : ''}
     `;
     openModal('equipment-details-modal');
@@ -218,16 +220,14 @@ function editEquipment(id) {
 }
 
 // ============================================
-// BORROWING FORM - Centralized System
+// BORROWING FORM
 // ============================================
 
 async function loadBorrowers() {
   try {
-    const res = await fetch(`${API_URL}/users`);
+    const res = await fetch(`${API_URL}/users`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (data.success) {
-      // Only ACTIVE students and teachers (borrowers)
-      // Supports multiple status field names and case variations
       allBorrowers = data.data.filter(u => {
         const isBorrower = u.user_type === 'student' || u.user_type === 'teacher';
         const userStatus = u.status || u.account_status || u.user_status || 'Active';
@@ -252,7 +252,7 @@ async function openBorrowForm(equipmentId) {
   const select = document.getElementById('borrower-select');
   if (select) {
     select.innerHTML = '<option value="">-- Choose a borrower --</option>' +
-      allBorrowers.map(u => `<option value="${u._id}">${u.first_name} ${u.middle_name ? u.middle_name + ' ' : ''}${u.last_name} (${u.student_id_number})</option>`).join('');
+      allBorrowers.map(u => `<option value="${escapeHtml(u._id)}">${escapeHtml(u.first_name)} ${u.middle_name ? escapeHtml(u.middle_name) + ' ' : ''}${escapeHtml(u.last_name)} (${escapeHtml(u.student_id_number)})</option>`).join('');
   }
 
   document.getElementById('borrow-name').value = '';
@@ -266,11 +266,13 @@ async function openBorrowForm(equipmentId) {
   document.getElementById('borrow-equipment-id').value = equipmentId;
   document.getElementById('borrow-equipment-name').value = item.name;
   document.getElementById('borrow-date').value = new Date().toISOString().split('T')[0];
-  const returnDate = new Date();
-  returnDate.setDate(returnDate.getDate() + 7);
-  document.getElementById('borrow-return-date').value = returnDate.toISOString().split('T')[0];
-  document.getElementById('borrow-available-hint').textContent = `Available: ${item.available_quantity}`;
 
+  // Set expected return date to 3 days from now
+  const returnDate = new Date();
+  returnDate.setDate(returnDate.getDate() + 3);
+  document.getElementById('borrow-return-date').value = returnDate.toISOString().split('T')[0];
+
+  document.getElementById('borrow-available-hint').textContent = `Available: ${item.available_quantity}`;
   document.getElementById('borrow-purpose').value = '';
   document.getElementById('borrow-notes').value = '';
 
@@ -304,13 +306,22 @@ function fillBorrowerFromSelect() {
 
 async function submitBorrowRequest(event) {
   event.preventDefault();
+
+  // Prevent double submission
+  const submitBtn = document.querySelector('#borrow-form-modal button[type="submit"]');
+  if (submitBtn && submitBtn.disabled) return;
+  if (submitBtn) submitBtn.disabled = true;
+
   const equipmentId = document.getElementById('borrow-equipment-id').value;
   const userId = document.getElementById('borrow-user-id').value;
 
   if (!userId) {
     alert('Please select a borrower from the dropdown.');
+    if (submitBtn) submitBtn.disabled = false;
     return;
   }
+
+  const returnDateInput = document.getElementById('borrow-return-date').value;
 
   const borrowData = {
     user_id: userId,
@@ -320,8 +331,8 @@ async function submitBorrowRequest(event) {
     equipment_name: document.getElementById('borrow-equipment-name').value,
     quantity: parseInt(document.getElementById('borrow-quantity').value),
     purpose: document.getElementById('borrow-purpose').value,
-    checkout_date: new Date(document.getElementById('borrow-date').value),
-    expected_return_date: new Date(document.getElementById('borrow-return-date').value),
+    checkout_date: new Date().toISOString(),
+    expected_return_date: new Date(returnDateInput + 'T00:00:00').toISOString(),
     notes: document.getElementById('borrow-notes').value,
     status: 'Borrowed'
   };
@@ -329,11 +340,12 @@ async function submitBorrowRequest(event) {
   try {
     const res = await fetch(`${API_URL}/transactions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(borrowData)
     });
     const data = await res.json();
     if (data.success) {
+      const currentUser = JSON.parse(localStorage.getItem('currentUser'));
       lastReceiptData = {
         transactionId: data.data?._id || 'N/A',
         borrowerName: borrowData.borrower_name,
@@ -346,9 +358,9 @@ async function submitBorrowRequest(event) {
         quantity: borrowData.quantity,
         purpose: borrowData.purpose,
         borrowDate: document.getElementById('borrow-date').value,
-        returnDate: document.getElementById('borrow-return-date').value,
+        returnDate: returnDateInput,
         notes: borrowData.notes,
-        operator: JSON.parse(localStorage.getItem('currentUser'))?.full_name || 'Admin'
+        operator: `${currentUser?.first_name || ''} ${currentUser?.last_name || ''}`.trim() || 'Admin'
       };
 
       showReceiptModal();
@@ -357,9 +369,11 @@ async function submitBorrowRequest(event) {
     } else {
       showToast(data.message || 'Error saving transaction', 'error');
     }
+    if (submitBtn) submitBtn.disabled = false;
   } catch (err) {
     console.error('Submit borrow error:', err);
     showToast('Error submitting request', 'error');
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
@@ -374,33 +388,33 @@ function showReceiptModal() {
       </div>
 
       <div style="margin-bottom:15px">
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Receipt No:</strong> ${lastReceiptData.transactionId.slice(-8).toUpperCase()}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Receipt No:</strong> ${escapeHtml(String(lastReceiptData.transactionId).slice(-8).toUpperCase())}</p>
         <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Date Issued:</strong> ${new Date().toLocaleString()}</p>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Issued By:</strong> ${lastReceiptData.operator}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Issued By:</strong> ${escapeHtml(lastReceiptData.operator)}</p>
       </div>
 
       <div style="background:#f5f8fc;padding:15px;border-radius:8px;margin-bottom:15px">
         <h4 style="margin:0 0 10px;color:#1b3150;font-size:14px">Borrower Information</h4>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Name:</strong> ${lastReceiptData.borrowerName}</p>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>ID Number:</strong> ${lastReceiptData.borrowerId}</p>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Type:</strong> ${lastReceiptData.userType}</p>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Department:</strong> ${lastReceiptData.department}</p>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Contact:</strong> ${lastReceiptData.contact}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Name:</strong> ${escapeHtml(lastReceiptData.borrowerName)}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>ID Number:</strong> ${escapeHtml(lastReceiptData.borrowerId)}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Type:</strong> ${escapeHtml(lastReceiptData.userType)}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Department:</strong> ${escapeHtml(lastReceiptData.department)}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Contact:</strong> ${escapeHtml(lastReceiptData.contact)}</p>
       </div>
 
       <div style="background:#f5f8fc;padding:15px;border-radius:8px;margin-bottom:15px">
         <h4 style="margin:0 0 10px;color:#1b3150;font-size:14px">Equipment Details</h4>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Equipment:</strong> ${lastReceiptData.equipmentName}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Equipment:</strong> ${escapeHtml(lastReceiptData.equipmentName)}</p>
         <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Quantity:</strong> ${lastReceiptData.quantity}</p>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Purpose:</strong> ${lastReceiptData.purpose}</p>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Date Borrowed:</strong> ${lastReceiptData.borrowDate}</p>
-        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Return Deadline:</strong> ${lastReceiptData.returnDate}</p>
-        ${lastReceiptData.notes ? `<p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Notes:</strong> ${lastReceiptData.notes}</p>` : ''}
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Purpose:</strong> ${escapeHtml(lastReceiptData.purpose)}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Date Borrowed:</strong> ${escapeHtml(lastReceiptData.borrowDate)}</p>
+        <p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Return Deadline:</strong> ${escapeHtml(lastReceiptData.returnDate)}</p>
+        ${lastReceiptData.notes ? `<p style="margin:3px 0;font-size:12px;color:#40536d"><strong>Notes:</strong> ${escapeHtml(lastReceiptData.notes)}</p>` : ''}
       </div>
 
       <div style="border-top:2px dashed #e5ebf3;padding-top:15px;margin-top:15px;text-align:center">
         <p style="margin:0;font-size:11px;color:#718096">Please bring this receipt when returning the equipment.</p>
-        <p style="margin:5px 0 0;font-size:11px;color:#718096">Late returns may incur penalties.</p>
+        <p style="margin:5px 0 0;font-size:11px;color:#c13d50;font-weight:600">Late returns will incur a penalty of PHP 50 + PHP 50 per day overdue.</p>
       </div>
     </div>
   `;

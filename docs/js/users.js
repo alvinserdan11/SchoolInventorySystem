@@ -11,14 +11,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadUsers() {
   try {
-    const res = await fetch(`${API_URL}/users`);
+    const res = await fetch(`${API_URL}/users`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (data.success) {
       allUsers = data.data;
       renderUsers();
+    } else {
+      showToast(data.message || 'Failed to load users', 'error');
     }
   } catch (err) {
     console.error('Load users error:', err);
+    showToast('Error loading users', 'error');
   }
 }
 
@@ -40,17 +43,17 @@ function renderUsers() {
   if (tbody) {
     tbody.innerHTML = filtered.map(user => `
       <tr>
-        <td>${user._id.slice(-6)}</td>
-        <td>${user.first_name} ${user.middle_name ? user.middle_name + ' ' : ''}${user.last_name}</td>
-        <td>${user.student_id_number || '-'}</td>
-        <td>${user.email}</td>
-        <td>${user.contact_number}</td>
-        <td>${user.department}${user.course ? ' - ' + user.course : ''}</td>
-        <td><span class="badge">${user.user_type}</span></td>
+        <td>${escapeHtml(user._id.slice(-6))}</td>
+        <td>${escapeHtml(user.first_name)} ${escapeHtml(user.middle_name ? user.middle_name + ' ' : '')}${escapeHtml(user.last_name)}</td>
+        <td>${escapeHtml(user.student_id_number) || '-'}</td>
+        <td>${escapeHtml(user.email)}</td>
+        <td>${escapeHtml(user.contact_number)}</td>
+        <td>${escapeHtml(user.department)}${user.course ? ' - ' + escapeHtml(user.course) : ''}</td>
+        <td><span class="badge">${escapeHtml(user.user_type)}</span></td>
         <td>${getStatusBadge(user.account_status)}</td>
         <td>
-          <button class="btn btn-small" onclick="editUser('${user._id}')">Edit</button>
-          <button class="btn btn-small" onclick="viewUserHistory('${user._id}')">History</button>
+          <button class="btn btn-small" onclick="editUser('${escapeHtml(user._id)}')">Edit</button>
+          <button class="btn btn-small" onclick="viewUserHistory('${escapeHtml(user._id)}')">History</button>
         </td>
       </tr>
     `).join('');
@@ -124,7 +127,7 @@ async function saveUser(event) {
     const method = id ? 'PUT' : 'POST';
     const res = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(userData)
     });
     const data = await res.json();
@@ -132,6 +135,8 @@ async function saveUser(event) {
       showToast(id ? 'User updated!' : 'User created!');
       closeModal('user-form-modal');
       loadUsers();
+    } else {
+      showToast(data.message || 'Error saving user', 'error');
     }
   } catch (err) {
     console.error('Save user error:', err);
@@ -143,22 +148,25 @@ function updateUserFormFields() {
   const type = document.getElementById('user-type').value;
   const passwordGroup = document.getElementById('user-password-group');
   const passwordHint = document.getElementById('user-password-hint');
+  const passwordInput = document.getElementById('user-password');
   if (type === 'custodian' || type === 'admin') {
     passwordGroup.style.display = 'block';
     passwordHint.textContent = 'Password is required for operator accounts.';
+    passwordInput.required = true;
   } else {
     passwordGroup.style.display = 'none';
+    passwordInput.required = false;
   }
 }
 
 async function viewUserHistory(userId) {
   try {
-    const res = await fetch(`${API_URL}/transactions`);
+    const res = await fetch(`${API_URL}/transactions`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (data.success) {
       const userTransactions = data.data.filter(t => t.user_id === userId || t.user_id?._id === userId);
       const user = allUsers.find(u => u._id === userId);
-      document.getElementById('user-history-title').textContent = `Borrowing History - ${user?.first_name || ''} ${user?.last_name || ''}`;
+      document.getElementById('user-history-title').textContent = `Borrowing History - ${escapeHtml(user?.first_name || '')} ${escapeHtml(user?.last_name || '')}`;
       const body = document.getElementById('user-history-body');
       if (body) {
         body.innerHTML = `
@@ -167,7 +175,7 @@ async function viewUserHistory(userId) {
             <tbody>
               ${userTransactions.length ? userTransactions.map(t => `
                 <tr>
-                  <td>${t.equipment_name}</td>
+                  <td>${escapeHtml(t.equipment_name)}</td>
                   <td>${t.quantity}</td>
                   <td>${formatDate(t.checkout_date)}</td>
                   <td>${formatDate(t.actual_return_date)}</td>
@@ -179,8 +187,11 @@ async function viewUserHistory(userId) {
         `;
       }
       openModal('user-history-modal');
+    } else {
+      showToast(data.message || 'Failed to load user history', 'error');
     }
   } catch (err) {
     console.error('User history error:', err);
+    showToast('Error loading user history', 'error');
   }
 }
