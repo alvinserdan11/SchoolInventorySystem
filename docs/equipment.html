@@ -98,7 +98,17 @@
         </div>
         <div>
           <label for="equipment-location">Storage Location</label>
-          <input type="text" id="equipment-location" placeholder="e.g. Gym Storage" required>
+          <select id="equipment-location" required>
+            <option value="">-- Select Location --</option>
+            <option value="Main Storage">Main Storage</option>
+            <option value="Gym Storage">Gym Storage</option>
+            <option value="Library">Library</option>
+            <option value="Science Lab">Science Lab</option>
+            <option value="Computer Lab">Computer Lab</option>
+            <option value="AV Room">AV Room</option>
+            <option value="Maintenance Room">Maintenance Room</option>
+            <option value="Sports Storage">Sports Storage</option>
+          </select>
         </div>
         <div>
           <label for="equipment-condition">Condition</label>

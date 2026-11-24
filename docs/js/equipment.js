@@ -8,9 +8,22 @@ let allBorrowers = [];
 let equipmentToDelete = null;
 let lastReceiptData = null;
 
+const STORAGE_LOCATIONS = [
+  'Main Storage',
+  'Gym Storage',
+  'Library',
+  'Science Lab',
+  'Computer Lab',
+  'AV Room',
+  'Maintenance Room',
+  'Sports Storage',
+  'Classroom'
+];
+
 document.addEventListener('DOMContentLoaded', () => {
   if (!document.getElementById('page-equipment')) return;
   loadCategories();
+  loadLocationFilter();
   loadEquipment();
 });
 
@@ -35,11 +48,25 @@ async function loadCategories() {
   }
 }
 
+function loadLocationFilter() {
+  const locationFilter = document.getElementById('equipment-location-filter');
+  const locationSelect = document.getElementById('equipment-location');
+
+  // Populate filter dropdown in toolbar
+  if (locationFilter) {
+    locationFilter.innerHTML = '<option value="all">All Locations</option>' +
+      STORAGE_LOCATIONS.map(loc => `<option value="${escapeHtml(loc)}">${escapeHtml(loc)}</option>`).join('');
+  }
+
+  // Populate form dropdown (backup in case HTML doesn't have options)
+  if (locationSelect && locationSelect.options.length <= 1) {
+    locationSelect.innerHTML = '<option value="">-- Select Location --</option>' +
+      STORAGE_LOCATIONS.map(loc => `<option value="${escapeHtml(loc)}">${escapeHtml(loc)}</option>`).join('');
+  }
+}
+
 async function loadEquipment() {
   try {
-    // REMOVED: sync-stock call was resetting stock incorrectly
-    // Stock is now managed directly by borrow/return operations
-
     const res = await fetch(`${API_URL}/equipment`, { headers: getAuthHeaders() });
     const data = await res.json();
     if (data.success) {
@@ -54,20 +81,20 @@ async function loadEquipment() {
 function renderEquipment() {
   const search = document.getElementById('equipment-search')?.value.toLowerCase() || '';
   const categoryFilter = document.getElementById('equipment-category-filter')?.value || 'all';
+  const locationFilter = document.getElementById('equipment-location-filter')?.value || 'all';
   const viewFilter = document.getElementById('equipment-view-filter')?.value || 'all';
 
   let filtered = allEquipment.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(search);
     const matchesCategory = categoryFilter === 'all' || item.category_id?._id === categoryFilter || item.category_id === categoryFilter;
+    const matchesLocation = locationFilter === 'all' || item.storage_location === locationFilter;
     let matchesView = true;
     if (viewFilter === 'available') matchesView = item.available_quantity > 0;
     if (viewFilter === 'borrowed') matchesView = item.available_quantity < item.total_quantity;
-    return matchesSearch && matchesCategory && matchesView;
+    return matchesSearch && matchesCategory && matchesLocation && matchesView;
   });
 
   const grid = document.getElementById('equipment-grid');
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-  const isAdminOrCustodian = currentUser && (currentUser.user_type === 'admin' || currentUser.user_type === 'custodian');
 
   if (grid) {
     grid.innerHTML = filtered.map(item => {
@@ -79,14 +106,14 @@ function renderEquipment() {
       return `
       <div class="equipment-card" onclick="viewEquipmentDetails('${escapeHtml(item._id)}')">
         <img src="${escapeHtml(item.image_url) || 'download.png'}" alt="${escapeHtml(item.name)}" onerror="this.src='download.png'">
-        <h4>${escapeHtml(item.name)}</h4>
-        <p>${escapeHtml(item.storage_location) || 'No location'}</p>
-        <span class="badge ${item.available_quantity > 0 ? 'badge-active' : 'status-rejected'}">
+        <h4 style="text-align:center;margin:10px 0 5px;">${escapeHtml(item.name)}</h4>
+        <p style="text-align:center;color:#718096;font-size:13px;margin:0 0 10px;">${escapeHtml(item.storage_location) || 'No location'}</p>
+        <span class="badge ${item.available_quantity > 0 ? 'badge-active' : 'status-rejected'}" style="display:inline-block;width:100%;text-align:center;">
           ${availabilityText}
         </span>
         <div style="display:flex;gap:8px;margin-top:10px">
           ${borrowBtn}
-          ${isAdminOrCustodian ? `<button class="btn btn-small" style="color:#c13d50;background:#ffeaed;border-color:#f8d3d9"
+          ${isAdmin() ? `<button class="btn btn-small" style="color:#c13d50;background:#ffeaed;border-color:#f8d3d9"
             onclick="event.stopPropagation();openDeleteModal('${escapeHtml(item._id)}', '${escapeHtml(item.name)}')">🗑️</button>` : ''}
         </div>
       </div>
@@ -186,8 +213,6 @@ function viewEquipmentDetails(id) {
   const item = allEquipment.find(e => e._id === id);
   if (!item) return;
   const body = document.getElementById('equipment-details-body');
-  const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-  const isAdminOrCustodian = currentUser && (currentUser.user_type === 'admin' || currentUser.user_type === 'custodian');
   if (body) {
     body.innerHTML = `
       <p><strong>Name:</strong> ${escapeHtml(item.name)}</p>
@@ -197,7 +222,7 @@ function viewEquipmentDetails(id) {
       <p><strong>Condition:</strong> ${escapeHtml(item.condition_status)}</p>
       <p><strong>Status:</strong> ${escapeHtml(item.operational_status) || 'N/A'}</p>
       <p><strong>Available:</strong> ${item.available_quantity}/${item.total_quantity}</p>
-      ${isAdminOrCustodian ? `<div style="margin-top:20px;display:flex;gap:10px">
+      ${isAdmin() ? `<div style="margin-top:20px;display:flex;gap:10px">
         <button class="btn btn-primary" style="flex:1" onclick="closeModal('equipment-details-modal');editEquipment('${escapeHtml(item._id)}')">✏️ Edit Equipment</button>
       </div>` : ''}
     `;
@@ -267,7 +292,6 @@ async function openBorrowForm(equipmentId) {
   document.getElementById('borrow-equipment-name').value = item.name;
   document.getElementById('borrow-date').value = new Date().toISOString().split('T')[0];
 
-  // Set expected return date to 3 days from now
   const returnDate = new Date();
   returnDate.setDate(returnDate.getDate() + 3);
   document.getElementById('borrow-return-date').value = returnDate.toISOString().split('T')[0];
@@ -307,7 +331,6 @@ function fillBorrowerFromSelect() {
 async function submitBorrowRequest(event) {
   event.preventDefault();
 
-  // Prevent double submission
   const submitBtn = document.querySelector('#borrow-form-modal button[type="submit"]');
   if (submitBtn && submitBtn.disabled) return;
   if (submitBtn) submitBtn.disabled = true;
@@ -316,7 +339,7 @@ async function submitBorrowRequest(event) {
   const userId = document.getElementById('borrow-user-id').value;
 
   if (!userId) {
-    alert('Please select a borrower from the dropdown.');
+    showToast('Please select a borrower from the dropdown.', 'error');
     if (submitBtn) submitBtn.disabled = false;
     return;
   }

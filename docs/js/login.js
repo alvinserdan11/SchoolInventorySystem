@@ -24,11 +24,11 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem('authToken', data.token);
         window.location.href = 'dashboard.html';
       } else {
-        alert(data.message || 'Invalid credentials!');
+        showToast(data.message || 'Invalid credentials!', 'error');
       }
     } catch (err) {
       console.error('Login error:', err);
-      alert('Server error. Make sure backend is running on localhost:3000');
+      showToast('Server error. Make sure backend is running on localhost:3000', 'error');
     }
   });
 });

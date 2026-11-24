@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Equipment = require('../models/Equipment');
 const { authMiddleware } = require('../middleware/authMiddleware');
+const { requireRole } = require('../middleware/roleMiddleware');
 
 router.use(authMiddleware);
 
-// GET all equipment
+// GET all equipment - ANY authenticated user (admin or custodian)
 router.get('/', async (req, res) => {
   try {
     const equipment = await Equipment.find().populate('category_id').sort({ createdAt: -1 });
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST create equipment
+// POST create equipment - ADMIN AND CUSTODIAN
 router.post('/', async (req, res) => {
   try {
     const equipment = new Equipment(req.body);
@@ -26,8 +27,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT update equipment
-router.put('/:id', async (req, res) => {
+// PUT update equipment - ADMIN ONLY
+router.put('/:id', requireRole('admin'), async (req, res) => {
   try {
     const equipment = await Equipment.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json({ success: true, data: equipment });
@@ -36,8 +37,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE equipment
-router.delete('/:id', async (req, res) => {
+// DELETE equipment - ADMIN ONLY
+router.delete('/:id', requireRole('admin'), async (req, res) => {
   try {
     await Equipment.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Equipment deleted' });

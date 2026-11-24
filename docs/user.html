@@ -20,7 +20,7 @@
       <nav class="sidebar-nav">
         <button type="button" class="nav-link" onclick="showPage('dashboard')">📊 <span>Dashboard</span></button>
         <button type="button" class="nav-link" onclick="showPage('equipment')">📦 <span>Equipment</span></button>
-        <button type="button" class="nav-link active" onclick="showPage('users')">👥 <span>Users</span></button>
+        <button type="button" class="nav-link" onclick="showPage('users')">👥 <span>Users</span></button>
         <button type="button" class="nav-link" onclick="showPage('history')">📜 <span>Borrowing History</span></button>
         <button type="button" class="nav-link" onclick="showPage('penalties')">💰 <span>Penalties</span></button>
       </nav>
@@ -98,9 +98,69 @@
         <div><label for="user-email">Email Address *</label><input type="email" id="user-email" required></div>
         <div><label for="user-contact">Contact Number *</label><input type="text" id="user-contact" required></div>
         <div><label for="user-dob">Date of Birth</label><input type="date" id="user-dob"></div>
-        <div><label for="user-department">Department / Grade Level *</label><input type="text" id="user-department"
-            required></div>
-        <div><label for="user-course">Course *</label><input type="text" id="user-course" required></div>
+        <div>
+          <label for="user-department">Department / Grade Level *</label>
+          <select id="user-department" required>
+            <option value="">-- Select Department / Grade --</option>
+            <optgroup label="Colleges">
+              <option value="College of Business Administration">College of Business Administration</option>
+              <option value="College of Criminal Justice Education">College of Criminal Justice Education</option>
+              <option value="College of Education">College of Education</option>
+              <option value="College of Engineering">College of Engineering</option>
+              <option value="College of Hospitality Management">College of Hospitality Management</option>
+              <option value="College of Human Kinetics">College of Human Kinetics</option>
+              <option value="College of ICT">College of Information and Communications Technology</option>
+              <option value="College of Nursing">College of Nursing</option>
+            </optgroup>
+            <optgroup label="Senior High School">
+              <option value="Grade 11">Grade 11</option>
+              <option value="Grade 12">Grade 12</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label for="user-course">Course *</label>
+          <select id="user-course" required>
+            <option value="">-- Select Course / Strand --</option>
+            <optgroup label="Business Administration">
+              <option value="BSBA">BS Business Administration</option>
+              <option value="BSA">BS Accountancy</option>
+            </optgroup>
+            <optgroup label="Criminal Justice Education">
+              <option value="BSCrim">BS Criminology</option>
+            </optgroup>
+            <optgroup label="Education">
+              <option value="BEED">BEEd - Elementary Education</option>
+              <option value="BSED">BSEd - Secondary Education</option>
+              <option value="BSED">BSNEd - Bachelor of Special Needs Education</option>
+            </optgroup>
+            <optgroup label="Engineering">
+              <option value="BSCE">BS Geodetic Engineering</option>
+              <option value="BSCpE">BS Computer Engineering</option>
+            </optgroup>
+            <optgroup label="Hospitality Management">
+              <option value="BSHM">BS Hospitality Management</option>
+              <option value="BSTM">BS Tourism Management</option>
+            </optgroup>
+            <optgroup label="Human Kinetics">
+              <option value="BSPE">BS Physical Education</option>
+            </optgroup>
+            <optgroup label="Information Technology">
+              <option value="BSIT">BS Information Technology</option>
+              <option value="BSCS">BS Computer Science</option>
+            </optgroup>
+            <optgroup label="Nursing">
+              <option value="BSN">BS Nursing</option>
+            </optgroup>
+            <optgroup label="Senior High School">
+              <option value="STEM">STEM</option>
+              <option value="ABM">ABM</option>
+              <option value="HUMSS">HUMSS</option>
+              <option value="GAS">GAS</option>
+              <option value="TVL">TVL</option>
+            </optgroup>
+          </select>
+        </div>
         <div><label for="user-type">User Type *</label>
           <select id="user-type" onchange="updateUserFormFields()" required>
             <option value="student">Student</option>

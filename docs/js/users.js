@@ -52,7 +52,7 @@ function renderUsers() {
         <td><span class="badge">${escapeHtml(user.user_type)}</span></td>
         <td>${getStatusBadge(user.account_status)}</td>
         <td>
-          <button class="btn btn-small" onclick="editUser('${escapeHtml(user._id)}')">Edit</button>
+          ${isAdmin() ? `<button class="btn btn-small" onclick="editUser('${escapeHtml(user._id)}')">Edit</button>` : ''}
           <button class="btn btn-small" onclick="viewUserHistory('${escapeHtml(user._id)}')">History</button>
         </td>
       </tr>
@@ -61,15 +61,45 @@ function renderUsers() {
 }
 
 function openAddUser() {
+  if (!isAdmin() && !isCustodian()) {
+    showToast('Access denied.', 'error');
+    return;
+  }
+
   document.getElementById('user-form-title').textContent = 'Add New User';
   document.getElementById('user-form').reset();
   document.getElementById('user-record-id').value = '';
   document.getElementById('user-password-group').style.display = 'block';
   document.getElementById('user-role').value = 'borrower';
+
+  // Custodians can only create student or teacher accounts
+  const typeSelect = document.getElementById('user-type');
+  if (typeSelect) {
+    if (isCustodian() && !isAdmin()) {
+      typeSelect.innerHTML = `
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+      `;
+    } else {
+      // Admin sees all options - restore full list
+      typeSelect.innerHTML = `
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+        <option value="custodian">Custodian</option>
+        <option value="admin">Admin</option>
+      `;
+    }
+  }
+
   openModal('user-form-modal');
 }
 
 function editUser(id) {
+  if (!isAdmin()) {
+    showToast('Admin access required to edit users.', 'error');
+    return;
+  }
+
   const user = allUsers.find(u => u._id === id);
   if (!user) return;
   document.getElementById('user-form-title').textContent = 'Edit User';
@@ -93,7 +123,29 @@ function editUser(id) {
 
 async function saveUser(event) {
   event.preventDefault();
+
+  // Block non-admin, non-custodian from saving
+  if (!isAdmin() && !isCustodian()) {
+    showToast('Access denied.', 'error');
+    return;
+  }
+
   const id = document.getElementById('user-record-id').value;
+
+  // Block custodian from editing existing users
+  if (id && !isAdmin()) {
+    showToast('Only admins can edit users.', 'error');
+    return;
+  }
+
+  // Block custodian from creating admin/custodian accounts
+  if (!isAdmin() && isCustodian()) {
+    const userType = document.getElementById('user-type').value;
+    if (userType !== 'student' && userType !== 'teacher') {
+      showToast('Custodians can only create student or teacher accounts.', 'error');
+      return;
+    }
+  }
 
   // Validation
   const studentId = document.getElementById('user-student-id').value.trim();

@@ -61,12 +61,28 @@ function showPage(pageName) {
 function showToast(message, type) {
   type = type || 'success';
   var toast = document.getElementById('toast');
-  if (toast) {
-    toast.textContent = message;
-    toast.style.background = type === 'error' ? '#d84b5b' : '#102d52';
-    toast.style.display = 'block';
-    setTimeout(function () { toast.style.display = 'none'; }, 3000);
+
+  // Create toast element if it doesn't exist (e.g., on login page)
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
   }
+
+  toast.textContent = message;
+  toast.style.background = type === 'error' ? '#d84b5b' : '#102d52';
+  toast.style.display = 'block';
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateY(0)';
+
+  setTimeout(function () {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(20px)';
+    setTimeout(function () {
+      toast.style.display = 'none';
+    }, 300);
+  }, 3000);
 }
 
 function openModal(modalId) {
@@ -92,11 +108,75 @@ function formatDate(dateString) {
 }
 
 function getStatusBadge(status) {
-  var statusClass = (status || '').toLowerCase();
-  return '' + escapeHtml(status) + '';
+  var s = (status || '').toLowerCase();
+  var bg = '#e5ebf3';
+  var color = '#40536d';
+
+  // Transaction / Account statuses
+  if (s === 'overdue') {
+    bg = '#d84b5b';
+    color = '#fff';
+  } else if (s === 'returned') {
+    bg = '#4caf50';
+    color = '#fff';
+  } else if (s === 'borrowed') {
+    bg = '#1765df';
+    color = '#fff';
+  } else if (s === 'active' || s === 'available') {
+    bg = '#e8f5e9';
+    color = '#2e7d32';
+  } else if (s === 'inactive') {
+    bg = '#ffebee';
+    color = '#c62828';
+  }
+  // User types
+  else if (s === 'admin') {
+    bg = '#ffc107';      // pure yellow
+    color = '#333';
+  } else if (s === 'custodian') {
+    bg = '#fff3cd';      // light yellow
+    color = '#856404';
+  } else if (s === 'teacher') {
+    bg = '#e3f2fd';      // light blue
+    color = '#1565c0';
+  } else if (s === 'student') {
+    bg = '#f3e5f5';      // light purple
+    color = '#6a1b9a';
+  }
+
+  return `<span style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${bg};color:${color}">${escapeHtml(status)}</span>`;
 }
 
 document.addEventListener('DOMContentLoaded', function () {
   checkAuth();
   updateTopbar();
+});
+
+function checkUserRole() {
+  const user = JSON.parse(localStorage.getItem('currentUser'));
+  return user ? user.user_type || user.role : null;
+}
+
+function isAdmin() {
+  return checkUserRole() === 'admin';
+}
+
+function isCustodian() {
+  return checkUserRole() === 'custodian';
+}
+
+function requireAdmin() {
+  if (!isAdmin()) {
+    showToast('Admin access required.', 'error');
+    return false;
+  }
+  return true;
+}
+
+// Hide admin-only UI elements for non-admin users
+document.addEventListener('DOMContentLoaded', function () {
+  if (!isAdmin()) {
+    const adminOnlyElements = document.querySelectorAll('[data-admin-only]');
+    adminOnlyElements.forEach(el => el.style.display = 'none');
+  }
 });
