@@ -127,7 +127,7 @@ The system is designed for admin and custodian login only. Students and teachers
 | Username | (admin) |
 | Password | (admin123) |
 | Username | (custodian) |
-| Password | (custodian) |
+| Password | (custodian123) |
 
 ---
 

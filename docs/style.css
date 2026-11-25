@@ -406,6 +406,57 @@ textarea:focus {
   min-width: 160px;
 }
 
+/* PASSWORD WRAPPER & TOGGLE BUTTON */
+.password-wrapper {
+  position: relative;
+  width: 100%;
+  display: block;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-right: 45px;
+}
+
+.password-wrapper .toggle-password-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent !important;
+  border: none !important;
+  color: #718096;
+  cursor: pointer;
+  padding: 5px;
+  line-height: 1;
+  z-index: 2;
+  width: auto !important;
+  min-height: auto !important;
+  height: auto !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none !important;
+}
+
+.password-wrapper .toggle-password-btn:hover {
+  background: transparent !important;
+  color: #1b3150;
+  transform: translateY(-50%) !important;
+  box-shadow: none !important;
+}
+
+.password-wrapper .toggle-password-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
+}
+
 /* BUTTONS */
 .btn {
   min-height: 41px;

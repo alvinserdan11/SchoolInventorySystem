@@ -182,3 +182,62 @@ document.addEventListener('DOMContentLoaded', function () {
     adminOnlyElements.forEach(el => el.style.display = 'none');
   }
 });
+
+function openChangePassword() {
+  document.getElementById('change-password-form').reset();
+  openModal('change-password-modal');
+}
+
+async function changePassword(event) {
+  event.preventDefault();
+  var current = document.getElementById('current-password').value;
+  var newPass = document.getElementById('new-password').value;
+  var confirm = document.getElementById('confirm-password').value;
+
+  if (newPass !== confirm) {
+    showToast('New passwords do not match!', 'error');
+    return;
+  }
+
+  try {
+    var res = await fetch(API_URL + '/auth/change-password', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        currentPassword: current,
+        newPassword: newPass
+      })
+    });
+    var data = await res.json();
+    if (data.success) {
+      showToast('Password changed successfully! Please log in again.');
+      closeModal('change-password-modal');
+      setTimeout(function () {
+        logout();
+      }, 1500);
+    } else {
+      showToast(data.message || 'Failed to change password', 'error');
+    }
+  } catch (err) {
+    console.error('Change password error:', err);
+    showToast('Error changing password', 'error');
+  }
+}
+
+function togglePassword(inputId, btn) {
+  var input = document.getElementById(inputId);
+  var eyeOpen = btn.querySelector('.eye-open');
+  var eyeSlash = btn.querySelector('.eye-slash');
+
+  if (input.type === 'password') {
+    input.type = 'text';
+    eyeOpen.style.display = 'none';
+    eyeSlash.style.display = 'block';
+    btn.title = 'Hide password';
+  } else {
+    input.type = 'password';
+    eyeOpen.style.display = 'block';
+    eyeSlash.style.display = 'none';
+    btn.title = 'Show password';
+  }
+}
